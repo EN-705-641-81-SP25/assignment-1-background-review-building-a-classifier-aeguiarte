@@ -1,11 +1,15 @@
 import torch
 import torch.nn as nn
+
 torch.manual_seed(42)
 
 """
 Tensors
 """
 def tensor_creation():
+    print(f"\n{'*'*30}")
+    print("Tensor Creation")
+    print(f"{'*'*30}\n")
     # Creating two tensors from lists
     x1 = torch.tensor([[1, 2], [3, 4], [5, 6]], dtype=torch.float32)
 
@@ -39,6 +43,10 @@ def tensor_creation():
 Tensor Operations
 """
 def tensor_operations():
+    print(f"\n{'*'*30}")
+    print("Tensor Operations")
+    print(f"{'*'*30}\n")
+
     # Slicing of Tensors
     print(f"{'-' * 10} Slicing of Tensors {'-' * 10}")
     # You can slice PyTorch tensors the same way you slice `ndarrays` in NumPy
@@ -76,14 +84,24 @@ def tensor_operations():
     x = torch.tensor([[1, 2],
                       [3, 4],
                       [5, 6]])  # (3 rows and 2 columns)
-    print(x)
+    print("Tensor with dimensions 3x2:\n{x}")
+    print("New tensor with different dimensions 6x1 but sharing data using the view method:")
     y = x.view(6, -1)  # y shape will be 6x1
+    print(y)
+    print("Multiplying x by 2 inplace:")
+    x.mul_(2)
+    print(x)
+    print("The operation on the original tensor affects the data of the view as it refers to the same data:")
     print(y)
 
 """
 Mathematical Operations
 """
 def math_operations():
+    print(f"\n{'*'*30}")
+    print("Mathematical Operations")
+    print(f"{'*'*30}\n")
+
     # Create two new tensors
     x1 = torch.ones([3, 2])
     x2 = torch.ones([3, 2])
@@ -112,14 +130,18 @@ PyTorch and Numpy Bridge
 import numpy as np
 
 def torch_numpy():
-    print(f"{'-' * 10} PyTorch and Numpy Bridge {'-' * 10}")
+    print(f"\n{'-' * 10} PyTorch and Numpy Bridge {'-' * 10}")
     arr = np.array([[1, 2], [3, 4]], dtype=np.float32)
     x = torch.from_numpy(arr)
     arr = x.numpy()
-    print(type(x), type(arr))
+    print(f"type(x): {type(x)}, type(arr): {type(arr)}")
+    print(f"{'_'*40}\n")
 
 def run_all_basics_demo():
     tensor_creation()
     tensor_operations()
     math_operations()
     torch_numpy()
+
+if __name__ == "__main__":
+    run_all_basics_demo()
