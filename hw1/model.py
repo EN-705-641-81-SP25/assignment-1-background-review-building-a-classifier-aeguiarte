@@ -1,4 +1,5 @@
-import easydict
+from logging import config
+from easydict import EasyDict
 import nltk
 from nltk.tokenize import word_tokenize  # for tokenization
 import numpy as np  # for numerical operators
@@ -26,8 +27,6 @@ In the second part of the homework, we will build a simple sentiment classifier 
 """
 Data Loading and Splits
 """
-
-
 def load_data() -> Tuple[
     Dict[str, List[Union[int, str]]], Dict[str, List[Union[int, str]]], Dict[str, List[Union[int, str]]]]:
     # download dataset
@@ -55,8 +54,6 @@ def load_data() -> Tuple[
 """
 Featurization
 """
-
-
 def featurize(sentence: str, embeddings: gensim.models.keyedvectors.KeyedVectors) -> Union[None, torch.FloatTensor]:
     # sequence of word embeddings
     vectors = []
@@ -73,7 +70,12 @@ def featurize(sentence: str, embeddings: gensim.models.keyedvectors.KeyedVectors
     # None - if the vector sequence is empty, i.e. the sentence is empty or None of the words in the sentence is in the embedding vocabulary
     # A torch tensor of shape (embed_dim,) - the average word embedding of the sentence
     # Hint: follow the hints in the pdf description
-
+    if vectors:
+        emb_arr = np.array(vectors)
+        avg_emb = torch.tensor(np.mean(emb_arr, axis=0))
+        return avg_emb
+    else:
+        return None
 
 def create_tensor_dataset(raw_data: Dict[str, List[Union[int, str]]],
                           embeddings: gensim.models.keyedvectors.KeyedVectors) -> TensorDataset:
@@ -82,7 +84,10 @@ def create_tensor_dataset(raw_data: Dict[str, List[Union[int, str]]],
 
         # TODO: complete the for loop to featurize each sentence
         # only add the feature and label to the list if the feature is not None
-
+        embedding = featurize(text, embeddings)
+        if embedding is not None:
+            all_features.append(embedding)
+            all_labels.append(label)
         # your code ends here
 
     # stack all features and labels into two single tensors and create a TensorDataset
@@ -95,8 +100,6 @@ def create_tensor_dataset(raw_data: Dict[str, List[Union[int, str]]],
 """
 Dataloader
 """
-
-
 def create_dataloader(dataset: TensorDataset, batch_size: int, shuffle: bool = True) -> DataLoader:
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
@@ -104,8 +107,6 @@ def create_dataloader(dataset: TensorDataset, batch_size: int, shuffle: bool = T
 """
 Defining our First PyTorch Model
 """
-
-
 class SentimentClassifier(nn.Module):
     def __init__(self, embed_dim, num_classes):
         super().__init__()
@@ -114,7 +115,16 @@ class SentimentClassifier(nn.Module):
 
         # TODO: define the linear layer
         # Hint: follow the hints in the pdf description
-
+        self.linear_layer = nn.Linear(self.embed_dim, self.num_classes)
+        # TODO: uncomment to use MLP with three layers
+        # hidden_size = self.embed_dim * 4
+        # self.linear1 = nn.Linear(self.embed_dim, hidden_size)
+        # self.dropout1 = nn.Dropout(0.8)
+        # self.relu1 = nn.ReLU()
+        # self.linear2 = nn.Linear(hidden_size, hidden_size)
+        # self.dropout2 = nn.Dropout(0.6)
+        # self.relu2 = nn.ReLU()
+        # self.linear3 = nn.Linear(hidden_size, num_classes)
         # your code ends here
 
         self.loss = nn.CrossEntropyLoss(reduction='mean')
@@ -122,7 +132,15 @@ class SentimentClassifier(nn.Module):
     def forward(self, inp):
         # TODO: complete the forward function
         # Hint: follow the hints in the pdf description
-
+        logits = self.linear_layer(inp)
+        # TODO: uncomment to use MLP with three layers
+        # x = self.linear1(inp)
+        # x = self.dropout1(x)
+        # x = self.relu1(x)
+        # x = self.linear2(x)
+        # x = self.dropout2(x)
+        # x = self.relu2(x)
+        # logits = self.linear3(x)
         # your code ends here
 
         return logits
@@ -131,16 +149,15 @@ class SentimentClassifier(nn.Module):
 """
 Chain Everything Together: Training and Evaluation
 """
-
-
 def accuracy(logits: torch.FloatTensor, labels: torch.LongTensor) -> torch.FloatTensor:
     assert logits.shape[0] == labels.shape[0]
     # TODO: complete the function to compute the accuracy
     # Hint: follow the hints in the pdf description, the return should be a tensor of 0s and 1s with the same shape as labels
     # labels is a tensor of shape (batch_size,)
     # logits is a tensor of shape (batch_size, num_classes)
-
-    return ...
+    _, preds = logits.topk(1, dim=1)
+    accuracy = (preds == labels).float()
+    return accuracy
 
 
 def evaluate(model: SentimentClassifier, eval_dataloader: DataLoader) -> Tuple[float, float]:
@@ -149,6 +166,8 @@ def evaluate(model: SentimentClassifier, eval_dataloader: DataLoader) -> Tuple[f
     eval_accs = []
     for batch in tqdm(eval_dataloader):
         inp, labels = batch
+        if len(inp) < 64:
+            continue
         # forward pass
         logits = model(inp)
         # loss and accuracy computation
@@ -183,6 +202,8 @@ def train(model: SentimentClassifier,
             # will explain more about it in future lectures and homework
             optimizer.zero_grad()
             inp, labels = batch
+            if len(inp) < 64:
+                continue
             # forward pass
             logits = model(inp)
             # compute loss and backpropagate
@@ -214,8 +235,11 @@ def train(model: SentimentClassifier,
     return all_epoch_train_losses, all_epoch_train_accs, all_epoch_dev_losses, all_epoch_dev_accs
 
 
-def visualize_epochs(epoch_train_losses: List[float], epoch_dev_losses: List[float], save_fig_path: str):
+def visualize_epochs(epoch_train_losses: List[float], epoch_dev_losses: List[float], save_fig_path: str,
+                     plot_title: str=""):
     plt.clf()
+    if plot_title:
+        plt.title(plot_title)
     plt.plot(epoch_train_losses, label='train')
     plt.plot(epoch_dev_losses, label='dev')
     plt.xticks(np.arange(0, len(epoch_train_losses)).astype(np.int32)),
@@ -237,7 +261,7 @@ def visualize_configs(all_config_epoch_stats: List[List[float]], config_names: L
     plt.savefig(save_fig_path)
 
 
-def run(config: easydict.EasyDict,
+def run(config: EasyDict,
         dev_data: Dict[str, List[Union[int, str]]],
         train_data: Dict[str, List[Union[int, str]]],
         test_data: Dict[str, List[Union[int, str]]]):
